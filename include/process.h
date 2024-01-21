@@ -18,7 +18,6 @@ class Process {
   bool operator<(Process const& a) const;
   bool operator==(Process const& other) const;
 
-  // TODO: Declare any necessary private members
  private:
     int m_pid{};
 };

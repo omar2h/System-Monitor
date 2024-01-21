@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <iostream>
-
 #include "linux_parser.h"
 
 using std::stof;
@@ -11,7 +10,6 @@ using std::string;
 using std::to_string;
 using std::vector;
 
-// DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
   string line;
   string key;
@@ -34,7 +32,6 @@ string LinuxParser::OperatingSystem() {
   return value;
 }
 
-// DONE: An example of how to read data from the filesystem
 string LinuxParser::Kernel() {
   string os, version, kernel;
   string line;
@@ -67,24 +64,65 @@ vector<int> LinuxParser::Pids() {
   return pids;
 }
 
-// TODO: Read and return the system memory utilization
-float LinuxParser::MemoryUtilization() { return 0.0; }
+// https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc-meminfo-like-htop/41251290#41251290
+float LinuxParser::MemoryUtilization()
+{
+  float memory_utilization{};
+  std::ifstream stream(kProcDirectory + kMeminfoFilename);
+  if(stream.is_open()) {
+    string token{};
+    unsigned long memTotal{};
+    unsigned long cached{};
+    unsigned long SReclaimable{};
+    unsigned long Shmem{};
+    unsigned long MemFree{};
+    unsigned long Buffers{};
+    while(stream >> token) {
+      if(token == "MemTotal:") {
+        stream >> token;
+        memTotal = stol(token);
+      }
+      else if(token == "Cached:") {
+        stream >> token;
+        cached = stol(token);
+      }
+      else if(token == "Shmem:") {
+        stream >> token;
+        Shmem = stol(token);
+      }
+      else if(token == "MemFree:") {
+        stream >> token;
+        MemFree = stol(token);
+      }
+      else if(token == "Buffers:") {
+        stream >> token;
+        Buffers = stol(token);
+      }
+      else if(token == "SReclaimable:") {
+        stream >> token;
+        SReclaimable = stol(token);
+        break;
+      }
+    }
+    unsigned long usedMem{memTotal - MemFree};
+    unsigned long memCached{cached + SReclaimable - Shmem};
+    unsigned long nonCachedMem{usedMem - (Buffers + memCached)};
+    memory_utilization = static_cast<float>(memCached + nonCachedMem + Buffers)/static_cast<float>(memTotal);
+  }
+  return memory_utilization;
+}
 
 long LinuxParser::UpTime()
 { 
   long uptime{};
   std::ifstream stream(kProcDirectory + kUptimeFilename);
   if(stream.is_open()) {
-    string line{};
-    std::getline(stream, line);
-    std::istringstream linestream(line);
-    linestream >> uptime;
+    stream >> uptime;
   }
   return uptime;
 }
 
-// TODO: Read and return the number of jiffies for the system
-long LinuxParser::Jiffies() { return 0; }
+long LinuxParser::Jiffies() { return LinuxParser::ActiveJiffies() + LinuxParser::IdleJiffies(); }
 
 long LinuxParser::ActiveJiffies(int pid)
 {
@@ -101,7 +139,7 @@ long LinuxParser::ActiveJiffies(int pid)
     // cstime
     long children_kernel_time{};
 
-    for(size_t i{}; i<12; i++) {
+    for(size_t i{}; i<13; i++) {
       stream >> token;
     }
     stream >> user_time >> kernel_time >> children_user_time >> children_kernel_time;
@@ -119,7 +157,6 @@ long LinuxParser::ActiveJiffies()
         stol(active_jeffies.at(kGuest_)) + stol(active_jeffies.at(kGuestNice_));
 }
 
-// TODO: Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies()
 { 
   vector<string> idle_jeffies = CpuUtilization();
@@ -146,11 +183,37 @@ vector<string> LinuxParser::CpuUtilization()
    return values;
 }
 
-// TODO: Read and return the total number of processes
-int LinuxParser::TotalProcesses() { return 0; }
+int LinuxParser::TotalProcesses()
+{ 
+  int total_processes{};
+  std::ifstream stream(kProcDirectory + kStatFilename);
+  if(stream.is_open()) {
+    string token{};
+    while(stream >> token) {
+      if(token == "processes") {
+        stream >> token;
+        total_processes = stoi(token);
+      }
+    }
+  }
+  return total_processes;
+}
 
-// TODO: Read and return the number of running processes
-int LinuxParser::RunningProcesses() { return 0; }
+int LinuxParser::RunningProcesses()
+{
+  int running_processes{};
+  std::ifstream stream(kProcDirectory + kStatFilename);
+  if(stream.is_open()) {
+    string token{};
+    while(stream >> token) {
+      if(token == "procs_running") {
+        stream >> token;
+        running_processes = stoi(token);
+      }
+    }
+  }
+  return running_processes;
+}
 
 string LinuxParser::Command(int pid) {
   string command{};

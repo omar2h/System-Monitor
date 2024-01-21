@@ -17,7 +17,7 @@ float Process::CpuUtilization() const
 {  
     long total_time{LinuxParser::ActiveJiffies(m_pid)};
     long start_time_seconds{UpTime()};
-    return (static_cast<float>(total_time)/sysconf(_SC_CLK_TCK)) / static_cast<float>(start_time_seconds);
+    return start_time_seconds != 0 ? (static_cast<float>(total_time)/sysconf(_SC_CLK_TCK)) / start_time_seconds : 0;
 }
 
 string Process::Command() const { return LinuxParser::Command(m_pid); }
